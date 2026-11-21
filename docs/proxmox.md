@@ -15,6 +15,20 @@ in the guest's trust store if your HA URL uses one.
 
 ## Install inside the guest
 
+Alternatively, run [`receiver/proxmox/create-lxc.sh`](../receiver/proxmox/create-lxc.sh)
+as root on the Proxmox host to create and provision an unprivileged Ubuntu 24.04
+container. It uses a free cluster ID, 1 CPU, 512 MB RAM, 2 GB disk, and DHCP on
+`vmbr0`. Active storage is selected automatically, preferring `local-lvm` for
+the root disk and `local` for templates. Override `CTID`, `BRIDGE`, `ROOT_STORAGE`,
+`TEMPLATE_STORAGE`, or `DISK_GB` as environment variables when needed. The script
+pins the receiver revision and leaves Blink registration for your interactive
+session. On failure it preserves the guest for inspection.
+
+The script also configures the dedicated guest's system journal with a 16 MiB
+persistent target, 4 MiB segments and an 8 MiB volatile target. Active journal
+files and rotation can add overhead above the configured target. The event
+queue has its own 8 MiB cap. Filesystem, OS and package data use additional disk.
+
 Run as root inside the guest. The checkout and virtual environment stay owned
 by root so the service account can only change its state directory.
 
