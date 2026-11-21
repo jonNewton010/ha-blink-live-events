@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 RECEIVER_REPOSITORY=https://github.com/jonNewton010/ha-blink-live-events.git
-RECEIVER_REVISION=1060fd11b4e06d797132b3fc03d4b26791ba81e6
+RECEIVER_REVISION=e454280c5f2de05b9cbde7df08bafb6a90e001b8
 CTID=${CTID:-}
 BRIDGE=${BRIDGE:-vmbr0}
 ROOT_STORAGE=${ROOT_STORAGE:-}

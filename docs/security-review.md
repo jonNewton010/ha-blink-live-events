@@ -146,7 +146,7 @@ only the intended internal HA address.
 ## Verification
 
 - Existing receiver tests and new credential-destination/redirect regressions
-  passed, 28 tests total, using Python 3.14.
+  passed, 35 tests total, using Python 3.14.
 - Existing HA integration tests passed, 9 tests, in an isolated Python 3.14
   environment with the Home Assistant test harness.
 - Dependency advisory scan reported no known vulnerabilities for the 20
@@ -154,3 +154,19 @@ only the intended internal HA address.
 - Real Blink sign-in, push latency, camera compatibility, Proxmox boot/restart,
   and certificate trust remain unverified. The setup guide includes those
   acceptance checks.
+
+## Registration follow-up
+
+A live setup returned JSON HTTP 404 with provider code 1624 at client update.
+No authoritative mapping of that numeric code was located. The fork now calls
+`/api/v2/users/info` before homescreen/client discovery, checks reported client
+and account verification requirements, and saves discovered session metadata
+before notification association. Current reference implementations include this
+post-token account lookup. This is a compatibility correction requiring a live
+retry to determine whether it resolves this account's 404.
+
+Error responses are read up to 16 KiB and reduced to JSON/non-JSON classification,
+a numeric provider code and an optional fixed error category. Arbitrary vendor
+text, tokens, URLs and identifiers are excluded from diagnostics. Additional
+privacy, initialization-order, verification and failed-association persistence
+tests pass.
