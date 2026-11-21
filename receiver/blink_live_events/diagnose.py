@@ -37,6 +37,7 @@ def client_diagnostics(data_dir: Path) -> dict[str, object]:
         "account_client_id_is_positive_number": str(info_id).isdigit() and int(str(info_id)) > 0,
         "homescreen_client_id_is_positive_number": str(header_id).isdigit() and int(str(header_id)) > 0,
         "client_ids_match": str(info_id) == str(header_id) if info_id is not None and header_id else None,
+        "saved_client_matches_account": str(state.get("client_id")) == str(info_id) if info_id is not None else None,
         "saved_client_matches_homescreen": str(state.get("client_id")) == str(header_id) if header_id else None,
         "client_verification_required": bool(info.get("client_verification_required")),
         "account_verification_required": bool(info.get("account_verification_required") or info.get("phone_verification_required")),

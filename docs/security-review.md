@@ -146,7 +146,7 @@ only the intended internal HA address.
 ## Verification
 
 - Existing receiver tests and new credential-destination/redirect regressions
-  passed, 35 tests total, using Python 3.14.
+  passed, 38 tests total, using Python 3.14.
 - Existing HA integration tests passed, 9 tests, in an isolated Python 3.14
   environment with the Home Assistant test harness.
 - Dependency advisory scan reported no known vulnerabilities for the 20
@@ -170,3 +170,15 @@ a numeric provider code and an optional fixed error category. Arbitrary vendor
 text, tokens, URLs and identifiers are excluded from diagnostics. Additional
 privacy, initialization-order, verification and failed-association persistence
 tests pass.
+
+### Client identifier correction
+
+A live diagnostic returned a positive numeric client ID in `/api/v2/users/info`
+and a different, nonnumeric `Client-Id` homescreen header. The old receiver had
+saved the header and interpolated it into the notification-registration route.
+The receiver now uses and validates the authenticated account response's numeric
+client ID, refreshes older saved header values during registration and rejects
+missing or invalid account IDs before any update POST. It does not select a
+client from a list of other signed-in devices. Tests reproduce conflicting,
+opaque and missing homescreen headers and invalid account response client IDs.
+Registration and real push delivery still require a live retry after this fix.

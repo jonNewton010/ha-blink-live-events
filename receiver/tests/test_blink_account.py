@@ -162,7 +162,7 @@ class HostedOAuthTests(unittest.TestCase):
                 blink_account,
                 "_request",
                 side_effect=[
-                    (200, {}, b"{}"),
+                    (200, {}, b'{"client_id": 456}'),
                     (200, {"Client-Id": "456"}, b"{}"),
                     (200, {}, b"{}"),
                 ],

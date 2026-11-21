@@ -338,17 +338,19 @@ def _discover_account(state: dict[str, Any], data_dir: Path) -> dict[str, Any]:
     if account_info.get("phone_verification_required") or account_info.get("account_verification_required"):
         raise BlinkAccountError("account_info", "account_verification_required")
 
-    status, response_headers, _ = _request(
+    # The authenticated account response supplies the numeric client record ID.
+    # A homescreen Client-Id header can instead contain an opaque identifier.
+    client_id = str(account_info.get("client_id", ""))
+    if not re.fullmatch(r"[1-9][0-9]*", client_id):
+        raise BlinkAccountError("client_discovery", "account_client_id_invalid")
+
+    status, _, _ = _request(
         "GET",
         f"{rest_root}/v3/accounts/{urllib.parse.quote(str(account_id), safe='')}/homescreen",
         headers=headers,
     )
     if status != 200:
         raise BlinkAccountError("client_discovery", f"http_{status}")
-    client_id = response_headers.get("Client-Id")
-    if not client_id:
-        raise BlinkAccountError("client_discovery", "client_id_header_missing")
-
     state.update({"tier": tier, "account_id": str(account_id), "client_id": client_id})
     atomic_json(data_dir / AUTH_STATE_NAME, state)
     return state
