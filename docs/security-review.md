@@ -81,8 +81,13 @@ It grows indefinitely, and delivery loads and scans the history. This can
 consume guest disk and increase processing time. It also retains private camera
 activity metadata. Ordinary log rotation can lose queue/checkpoint state.
 
-This requires a separate queue/retention change for sustained operation. The
-Proxmox guide documents monitoring and protects the state directory. HA delivery
+The fork now caps the journal at 8 MiB and compacts it to at most 4 MiB.
+Delivered messages are removed with their checkpoints, and initialization state
+and pending deliveries are preserved. If pending records exceed the target,
+oldest or individually oversized events are dropped with a count-only warning.
+Writes and reads use a shared thread lock and replacement is atomic. One process
+must own each data directory. Temporary replacement can use about 12 MiB total.
+HA delivery
 can retry old events after an outage, and delivery is not exactly once across a
 crash between a successful POST and its checkpoint. Dashboard automations should
 check event freshness and tolerate duplicate event IDs when wired in.
@@ -141,7 +146,7 @@ only the intended internal HA address.
 ## Verification
 
 - Existing receiver tests and new credential-destination/redirect regressions
-  passed, 23 tests total, using Python 3.14.
+  passed, 28 tests total, using Python 3.14.
 - Existing HA integration tests passed, 9 tests, in an isolated Python 3.14
   environment with the Home Assistant test harness.
 - Dependency advisory scan reported no known vulnerabilities for the 20

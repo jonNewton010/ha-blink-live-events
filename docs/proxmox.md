@@ -3,7 +3,7 @@
 Run the receiver inside a dedicated unprivileged LXC container or Linux VM on
 Proxmox. These commands assume Ubuntu 24.04 or Debian 13 with systemd, Python
 3.12 or newer, and root access inside that guest. A small guest with 1 vCPU,
-512 MB RAM and 4 GB disk is a starting allocation. Monitor the event log's disk
+512 MB RAM and 2 GB disk is a starting allocation. Monitor the event log's disk
 usage. Keep the Proxmox host for managing guests.
 
 The receiver needs outbound HTTPS on TCP 443, Google's MCS push transport on
@@ -81,9 +81,13 @@ camera integration after an HA automation receives this event.
 
 The event journal `/var/lib/blink-live-events/messages.ndjson` contains raw push
 metadata and delivery checkpoints. Keep it private with the session tokens.
-It currently grows without rotation and delivery rescans it. Monitor its size
-and available guest disk. Do not apply ordinary logrotate to it because it is
-also the delivery queue and deduplication record. Protect guest backups as
+It is capped at 8 MiB and compacted to at most 4 MiB when the next append
+would exceed that cap. Compaction removes delivered events and diagnostics while
+preserving pending events and initialization state. If pending events alone
+exceed the target, the oldest or individually oversized events are discarded
+and a warning reports the count. One listener process must own each state directory.
+An atomic replacement temporarily needs room for both files, up to about 12 MiB.
+Protect guest backups as
 they contain usable session tokens. FCM token renewal and re-association with
 Blink can require repeating registration. Stop the service before re-registering.
 
