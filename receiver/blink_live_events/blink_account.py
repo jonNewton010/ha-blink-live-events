@@ -40,6 +40,35 @@ class BlinkAccountError(RuntimeError):
         self.reason = reason
 
 
+def _safe_error_response(data: bytes) -> bytes:
+    """Keep diagnostic categories and numeric codes, excluding vendor text."""
+    summary: dict[str, Any] = {"response_format": "non_json"}
+    try:
+        value = json.loads(data)
+    except (ValueError, UnicodeDecodeError):
+        return json.dumps(summary).encode()
+    summary["response_format"] = "json"
+    if isinstance(value, dict):
+        code = value.get("code")
+        if type(code) is int and 0 <= code <= 2147483647:
+            summary["provider_code"] = code
+        message = value.get("message")
+        if isinstance(message, str):
+            normalized = message.casefold()
+            if "client" in normalized and "not found" in normalized:
+                summary["error_kind"] = "client_not_found"
+    return json.dumps(summary).encode()
+
+
+def _client_update_error(status: int, response: bytes) -> str:
+    summary = _json_object(response, "client_update") if response else {}
+    details = [f"http_{status}"]
+    for key in ("response_format", "provider_code", "error_kind"):
+        if key in summary:
+            details.append(f"{key}={summary[key]}")
+    return ", ".join(details)
+
+
 def _request(method: str, url: str, *, headers: dict[str, str],
              form: dict[str, str] | None = None,
              body: dict[str, Any] | None = None) -> tuple[int, Any, bytes]:
@@ -68,9 +97,11 @@ def _request(method: str, url: str, *, headers: dict[str, str],
         with urlopen(request, timeout=25) as response:
             return response.status, response.headers, response.read()
     except urllib.error.HTTPError as error:
-        # The status is enough to choose the OAuth retry path. Avoid reading or
-        # logging provider bodies that may include account or session details.
-        return error.code, error.headers, b""
+        # Provider bodies can contain credentials and identifiers. Return only
+        # a bounded, allowlisted diagnostic summary and close the connection.
+        with error:
+            response = _safe_error_response(error.read(16384))
+        return error.code, error.headers, response
     except (urllib.error.URLError, TimeoutError, OSError):
         raise BlinkAccountError("network", "request_failed") from None
 
@@ -333,7 +364,7 @@ def associate_fcm_token(data_dir: Path, client_name: str = "Blink Live Events") 
         "client_name": client_name,
         "notification_key": fcm_state["fcm_token"],
     }
-    status, _, _ = _request(
+    status, _, response = _request(
         "POST",
         f"{rest_host}/clients/{urllib.parse.quote(str(auth_state['client_id']), safe='')}/update",
         headers={
@@ -343,7 +374,7 @@ def associate_fcm_token(data_dir: Path, client_name: str = "Blink Live Events") 
         body=body,
     )
     if status < 200 or status >= 300:
-        raise BlinkAccountError("client_update", f"http_{status}")
+        raise BlinkAccountError("client_update", _client_update_error(status, response))
     atomic_json(auth_path, auth_state)
     return auth_path
 
