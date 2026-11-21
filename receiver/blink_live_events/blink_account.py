@@ -323,6 +323,21 @@ def _discover_account(state: dict[str, Any], data_dir: Path) -> dict[str, Any]:
         raise BlinkAccountError("tier_info", "account_details_missing")
 
     rest_root = f"https://rest-{tier}.immedia-semi.com/api"
+    # Complete the post-token account lookup before associating notifications.
+    # A valid OAuth session may still require Blink's client/account verification.
+    status, _, response = _request(
+        "GET", f"{rest_root}/v2/users/info", headers=headers
+    )
+    if status != 200:
+        raise BlinkAccountError("account_info", f"http_{status}")
+    account_info = _json_object(response, "account_info")
+    state.update({"tier": tier, "account_id": str(account_id)})
+    atomic_json(data_dir / AUTH_STATE_NAME, state)
+    if account_info.get("client_verification_required"):
+        raise BlinkAccountError("account_info", "client_verification_required")
+    if account_info.get("phone_verification_required") or account_info.get("account_verification_required"):
+        raise BlinkAccountError("account_info", "account_verification_required")
+
     status, response_headers, _ = _request(
         "GET",
         f"{rest_root}/v3/accounts/{urllib.parse.quote(str(account_id), safe='')}/homescreen",
@@ -335,6 +350,7 @@ def _discover_account(state: dict[str, Any], data_dir: Path) -> dict[str, Any]:
         raise BlinkAccountError("client_discovery", "client_id_header_missing")
 
     state.update({"tier": tier, "account_id": str(account_id), "client_id": client_id})
+    atomic_json(data_dir / AUTH_STATE_NAME, state)
     return state
 
 
