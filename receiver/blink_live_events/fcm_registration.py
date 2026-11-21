@@ -22,6 +22,7 @@ from ..vendor.fcm_receiver.messages_manual import (
 )
 
 from .state import atomic_json, ensure_private_dir, read_json
+from ..network import urlopen
 
 
 ANDROID_PACKAGE = "com.immediasemi.android.blink"
@@ -55,7 +56,7 @@ def _post_json(url: str, body: dict[str, Any], headers: dict[str, str]) -> dict[
         method="POST",
         headers={"Accept": "application/json", "Content-Type": "application/json", **headers},
     )
-    with urllib.request.urlopen(request, timeout=25) as response:
+    with urlopen(request, timeout=25) as response:
         result = json.loads(response.read())
     if not isinstance(result, dict):
         raise RegistrationError("firebase_installation", "incomplete_response")

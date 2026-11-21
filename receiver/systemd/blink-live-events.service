@@ -1,0 +1,36 @@
+[Unit]
+Description=Blink push events for Home Assistant
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=blink-live-events
+Group=blink-live-events
+WorkingDirectory=/opt/blink-live-events
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/blink-live-events/receiver.env
+StateDirectory=blink-live-events
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/opt/blink-live-events/.venv/bin/python -m receiver.blink_live_events --data-dir /var/lib/blink-live-events listen
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=45
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

@@ -163,9 +163,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/coreyhayward/ha-blink-live-events:${{ steps.version.outputs.tag }}
-            ghcr.io/coreyhayward/ha-blink-live-events:latest
-            ghcr.io/coreyhayward/ha-blink-live-events:sha-${{ steps.release_commit.outputs.sha }}
+            ghcr.io/jonnewton010/ha-blink-live-events:${{ steps.version.outputs.tag }}
+            ghcr.io/jonnewton010/ha-blink-live-events:latest
+            ghcr.io/jonnewton010/ha-blink-live-events:sha-${{ steps.release_commit.outputs.sha }}
 
       - name: Create GitHub release
         env:

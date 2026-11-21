@@ -5,6 +5,7 @@ import json
 import secrets
 import urllib.parse
 import urllib.request
+from ...network import urlopen
 from typing import Optional, Tuple
 
 
@@ -49,7 +50,7 @@ def send_gcm_checkin_request(req: AndroidCheckinRequest) -> Tuple[int, int]:
             "User-Agent": "",
         },
     )
-    with urllib.request.urlopen(http_req) as resp:
+    with urlopen(http_req) as resp:
         body = resp.read()
         if resp.status // 100 != 2:
             raise RuntimeError(f"checkin HTTP {resp.status}: {body!r}")
@@ -110,7 +111,7 @@ def send_gcm_register_request(
             "User-Agent": "",
         },
     )
-    with urllib.request.urlopen(http_req) as resp:
+    with urlopen(http_req) as resp:
         result = resp.read()
     # Response is key=value lines; parse as query-string
     parsed = urllib.parse.parse_qs(result.decode())
@@ -159,7 +160,7 @@ def send_fcm_install_request(api_key: str, project_id: str, app_id: str, android
             ),
         },
     )
-    with urllib.request.urlopen(http_req) as resp:
+    with urlopen(http_req) as resp:
         result = json.loads(resp.read().decode())
     token = result.get("authToken", {}).get("token")
     if not token:
@@ -196,7 +197,7 @@ def send_fcm_register_request(
         method="POST",
         headers=headers,
     )
-    with urllib.request.urlopen(http_req) as resp:
+    with urlopen(http_req) as resp:
         result = json.loads(resp.read().decode())
     token = result.get("token")
     if not token:
@@ -259,7 +260,7 @@ def send_topic_subscription_request(
             "User-Agent": "",
         },
     )
-    with urllib.request.urlopen(http_req) as resp:
+    with urlopen(http_req) as resp:
         response_body = resp.read().decode()
     parsed = urllib.parse.parse_qs(response_body, keep_blank_values=True)
     if "Error" in parsed and parsed["Error"]:

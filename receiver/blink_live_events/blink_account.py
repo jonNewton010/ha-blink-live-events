@@ -6,6 +6,7 @@ import hmac
 import getpass
 import json
 import platform
+import re
 import secrets
 import sys
 import time
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .state import atomic_json, ensure_private_dir, read_json
+from ..network import urlopen
 
 
 OAUTH_TOKEN_URL = "https://api.oauth.blink.com/oauth/token"
@@ -38,9 +40,50 @@ class BlinkAccountError(RuntimeError):
         self.reason = reason
 
 
+def _safe_error_response(data: bytes) -> bytes:
+    """Keep diagnostic categories and numeric codes, excluding vendor text."""
+    summary: dict[str, Any] = {"response_format": "non_json"}
+    try:
+        value = json.loads(data)
+    except (ValueError, UnicodeDecodeError):
+        return json.dumps(summary).encode()
+    summary["response_format"] = "json"
+    if isinstance(value, dict):
+        code = value.get("code")
+        if type(code) is int and 0 <= code <= 2147483647:
+            summary["provider_code"] = code
+        message = value.get("message")
+        if isinstance(message, str):
+            normalized = message.casefold()
+            if "client" in normalized and "not found" in normalized:
+                summary["error_kind"] = "client_not_found"
+    return json.dumps(summary).encode()
+
+
+def _client_update_error(status: int, response: bytes) -> str:
+    summary = _json_object(response, "client_update") if response else {}
+    details = [f"http_{status}"]
+    for key in ("response_format", "provider_code", "error_kind"):
+        if key in summary:
+            details.append(f"{key}={summary[key]}")
+    return ", ".join(details)
+
+
 def _request(method: str, url: str, *, headers: dict[str, str],
              form: dict[str, str] | None = None,
              body: dict[str, Any] | None = None) -> tuple[int, Any, bytes]:
+    parsed = urllib.parse.urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.netloc != parsed.hostname
+        or not re.fullmatch(
+            r"api\.oauth\.blink\.com|rest-[a-z0-9-]+\.immedia-semi\.com",
+            parsed.hostname or "",
+        )
+    ):
+        raise BlinkAccountError("network", "untrusted_destination")
     data = None
     request_headers = {"User-Agent": USER_AGENT, **headers}
     if form is not None:
@@ -51,12 +94,14 @@ def _request(method: str, url: str, *, headers: dict[str, str],
         request_headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
     try:
-        with urllib.request.urlopen(request, timeout=25) as response:
+        with urlopen(request, timeout=25) as response:
             return response.status, response.headers, response.read()
     except urllib.error.HTTPError as error:
-        # The status is enough to choose the OAuth retry path. Avoid reading or
-        # logging provider bodies that may include account or session details.
-        return error.code, error.headers, b""
+        # Provider bodies can contain credentials and identifiers. Return only
+        # a bounded, allowlisted diagnostic summary and close the connection.
+        with error:
+            response = _safe_error_response(error.read(16384))
+        return error.code, error.headers, response
     except (urllib.error.URLError, TimeoutError, OSError):
         raise BlinkAccountError("network", "request_failed") from None
 
@@ -278,18 +323,36 @@ def _discover_account(state: dict[str, Any], data_dir: Path) -> dict[str, Any]:
         raise BlinkAccountError("tier_info", "account_details_missing")
 
     rest_root = f"https://rest-{tier}.immedia-semi.com/api"
-    status, response_headers, _ = _request(
+    # Complete the post-token account lookup before associating notifications.
+    # A valid OAuth session may still require Blink's client/account verification.
+    status, _, response = _request(
+        "GET", f"{rest_root}/v2/users/info", headers=headers
+    )
+    if status != 200:
+        raise BlinkAccountError("account_info", f"http_{status}")
+    account_info = _json_object(response, "account_info")
+    state.update({"tier": tier, "account_id": str(account_id)})
+    atomic_json(data_dir / AUTH_STATE_NAME, state)
+    if account_info.get("client_verification_required"):
+        raise BlinkAccountError("account_info", "client_verification_required")
+    if account_info.get("phone_verification_required") or account_info.get("account_verification_required"):
+        raise BlinkAccountError("account_info", "account_verification_required")
+
+    # The authenticated account response supplies the numeric client record ID.
+    # A homescreen Client-Id header can instead contain an opaque identifier.
+    client_id = str(account_info.get("client_id", ""))
+    if not re.fullmatch(r"[1-9][0-9]*", client_id):
+        raise BlinkAccountError("client_discovery", "account_client_id_invalid")
+
+    status, _, _ = _request(
         "GET",
         f"{rest_root}/v3/accounts/{urllib.parse.quote(str(account_id), safe='')}/homescreen",
         headers=headers,
     )
     if status != 200:
         raise BlinkAccountError("client_discovery", f"http_{status}")
-    client_id = response_headers.get("Client-Id")
-    if not client_id:
-        raise BlinkAccountError("client_discovery", "client_id_header_missing")
-
     state.update({"tier": tier, "account_id": str(account_id), "client_id": client_id})
+    atomic_json(data_dir / AUTH_STATE_NAME, state)
     return state
 
 
@@ -319,7 +382,7 @@ def associate_fcm_token(data_dir: Path, client_name: str = "Blink Live Events") 
         "client_name": client_name,
         "notification_key": fcm_state["fcm_token"],
     }
-    status, _, _ = _request(
+    status, _, response = _request(
         "POST",
         f"{rest_host}/clients/{urllib.parse.quote(str(auth_state['client_id']), safe='')}/update",
         headers={
@@ -329,7 +392,7 @@ def associate_fcm_token(data_dir: Path, client_name: str = "Blink Live Events") 
         body=body,
     )
     if status < 200 or status >= 300:
-        raise BlinkAccountError("client_update", f"http_{status}")
+        raise BlinkAccountError("client_update", _client_update_error(status, response))
     atomic_json(auth_path, auth_state)
     return auth_path
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import threading
@@ -9,25 +8,17 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+from ..network import urlopen
 
 from .capture import EVENTS_NAME, _append_private, utc_now
+from .journal import delivery_key, load_records as _load_records
 
 
 DELIVERABLE_CLASSIFICATIONS = {"doorbell_press", "camera_motion", "other"}
 
 
-def delivery_key(record: dict[str, Any]) -> str:
-    fcm = record.get("fcm") or {}
-    payload = record.get("payload") or {}
-    identity = (
-        fcm.get("persistent_id")
-        or fcm.get("id")
-        or payload.get("unique_id")
-        or record.get("received_at")
-        or json.dumps(record, sort_keys=True, separators=(",", ":"))
-    )
-    return hashlib.sha256(str(identity).encode("utf-8")).hexdigest()
 
 
 def _provider_timestamp(provider_sent_ms: Any) -> str | None:
@@ -85,19 +76,6 @@ class HomeAssistantWebhook:
                 raise OSError(f"Home Assistant returned HTTP {response.status}")
 
 
-def _load_records(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    records: list[dict[str, Any]] = []
-    with path.open("r", encoding="utf-8") as stream:
-        for line in stream:
-            try:
-                value = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(value, dict):
-                records.append(value)
-    return records
 
 
 def initialize_delivery_checkpoint(data_dir: Path) -> bool:

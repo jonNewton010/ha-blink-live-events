@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Any, Callable
 from ..vendor.fcm_receiver.messages_manual import DataMessageStanza
 from .blink_account import BlinkAccountError, acknowledge_notification
 from .state import atomic_json, ensure_private_dir, read_json
+from .journal import append_private as _append_private
 
 
 EVENTS_NAME = "messages.ndjson"
@@ -70,19 +70,6 @@ def classify(payload: dict[str, Any]) -> str:
     return "other" if event_type else "unclassified"
 
 
-def _append_private(path: Path, record: dict[str, Any]) -> None:
-    ensure_private_dir(path.parent)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-    try:
-        os.fchmod(fd, 0o600)
-        data = (json.dumps(record, separators=(",", ":"), sort_keys=True) + "\n").encode()
-        view = memoryview(data)
-        while view:
-            written = os.write(fd, view)
-            view = view[written:]
-        os.fsync(fd)
-    finally:
-        os.close(fd)
 
 
 class MessageCapture:

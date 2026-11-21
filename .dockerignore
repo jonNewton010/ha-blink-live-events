@@ -8,3 +8,8 @@
 .git
 .git/**
 **/__pycache__/
+**/blink-auth.json
+**/fcm-state.json
+**/messages.ndjson
+.venv*/
+data/

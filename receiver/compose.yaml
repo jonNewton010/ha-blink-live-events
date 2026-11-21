@@ -1,6 +1,6 @@
 services:
   blink-live-events:
-    image: ghcr.io/coreyhayward/ha-blink-live-events:${BLINK_LIVE_EVENTS_IMAGE_TAG:-latest}
+    image: ghcr.io/jonnewton010/ha-blink-live-events:${BLINK_LIVE_EVENTS_IMAGE_TAG:-latest}
     container_name: blink-live-events
     command: ["listen"]
     restart: unless-stopped

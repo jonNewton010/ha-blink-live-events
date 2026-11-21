@@ -162,13 +162,16 @@ class HostedOAuthTests(unittest.TestCase):
                 blink_account,
                 "_request",
                 side_effect=[
+                    (200, {}, b'{"client_id": 456}'),
                     (200, {"Client-Id": "456"}, b"{}"),
                     (200, {}, b"{}"),
                 ],
             ) as request:
                 associate_fcm_token(data_dir)
 
-        update_call = request.call_args_list[1]
+        self.assertEqual(request.call_args_list[0].args[1],
+                         "https://rest-test-tier.immedia-semi.com/api/v2/users/info")
+        update_call = request.call_args_list[2]
         self.assertEqual(
             update_call.args[1],
             "https://rest-test-tier.immedia-semi.com/clients/456/update",
