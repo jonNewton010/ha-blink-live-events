@@ -6,6 +6,12 @@ This is a community reverse-engineered project, not an official Blink, Amazon, G
 
 [![Open Blink Live Events in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=CoreyHayward&repository=ha-blink-live-events) [![GHCR image pulls](https://ghcr-badge.elias.eu.org/shield/CoreyHayward/ha-blink-live-events/ha-blink-live-events)](https://github.com/CoreyHayward/ha-blink-live-events/pkgs/container/ha-blink-live-events)
 
+## Proxmox installation
+
+This fork includes a [systemd setup for a Proxmox LXC container or VM](docs/proxmox.md)
+and a [security review](docs/security-review.md). The receiver can run directly
+with Python in the guest. Select the reviewed revision before connecting an account.
+
 ## Quickstart
 
 You need Home Assistant 2026.10.0 or newer, plus a Linux host with Docker Engine, Docker Compose v2, `curl`, and outbound internet access. The receiver can run on a separate host from Home Assistant, but it needs network access to HA's internal URL.

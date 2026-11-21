@@ -6,6 +6,10 @@ Read the repository [installation guide](../README.md) first. This file covers t
 
 ## Requirements
 
+For a native Python service in a Proxmox LXC container or VM, follow the
+[Proxmox installation guide](../docs/proxmox.md). The Docker steps below are
+the upstream deployment option.
+
 - Linux host with Docker Engine and Docker Compose v2; ARM64 and AMD64 are supported by the Python receiver.
 - Outbound DNS and internet access, including TCP port 5228 for Google's MCS connection.
 - The receiver's bundled Blink Android Firebase client configuration, with optional overrides in `.env`.

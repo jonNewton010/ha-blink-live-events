@@ -6,6 +6,7 @@ import hmac
 import getpass
 import json
 import platform
+import re
 import secrets
 import sys
 import time
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .state import atomic_json, ensure_private_dir, read_json
+from ..network import urlopen
 
 
 OAUTH_TOKEN_URL = "https://api.oauth.blink.com/oauth/token"
@@ -41,6 +43,18 @@ class BlinkAccountError(RuntimeError):
 def _request(method: str, url: str, *, headers: dict[str, str],
              form: dict[str, str] | None = None,
              body: dict[str, Any] | None = None) -> tuple[int, Any, bytes]:
+    parsed = urllib.parse.urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.netloc != parsed.hostname
+        or not re.fullmatch(
+            r"api\.oauth\.blink\.com|rest-[a-z0-9-]+\.immedia-semi\.com",
+            parsed.hostname or "",
+        )
+    ):
+        raise BlinkAccountError("network", "untrusted_destination")
     data = None
     request_headers = {"User-Agent": USER_AGENT, **headers}
     if form is not None:
@@ -51,7 +65,7 @@ def _request(method: str, url: str, *, headers: dict[str, str],
         request_headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
     try:
-        with urllib.request.urlopen(request, timeout=25) as response:
+        with urlopen(request, timeout=25) as response:
             return response.status, response.headers, response.read()
     except urllib.error.HTTPError as error:
         # The status is enough to choose the OAuth retry path. Avoid reading or

@@ -83,7 +83,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/coreyhayward/ha-blink-live-events
+          images: ghcr.io/jonnewton010/ha-blink-live-events
           tags: |
             type=raw,value=main
             type=sha,prefix=sha-

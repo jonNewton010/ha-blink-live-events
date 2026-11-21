@@ -6,6 +6,10 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv*/
+**/blink-auth.json
+**/fcm-state.json
+**/messages.ndjson
+/data/
 *.apk
 *.apks
 *.aab

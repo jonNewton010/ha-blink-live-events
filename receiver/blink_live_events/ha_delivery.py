@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+from ..network import urlopen
 
 from .capture import EVENTS_NAME, _append_private, utc_now
 
